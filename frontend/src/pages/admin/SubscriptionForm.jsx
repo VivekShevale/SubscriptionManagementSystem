@@ -177,6 +177,45 @@ export default function SubscriptionForm() {
     if (product) updateLine(idx, "unit_price", product.sales_price);
   };
 
+  const applyTemplate = (templateId) => {
+    if (!templateId) {
+      // Clear template selection — reset lines to blank
+      setForm(f => ({ ...f, quotation_template_id: "" }));
+      return;
+    }
+    const tmpl = templates.find((t) => t.id === parseInt(templateId));
+    if (!tmpl) return;
+
+    // Build expiration date from validity_days
+    const expDate = new Date();
+    expDate.setDate(expDate.getDate() + (tmpl.validity_days || 30));
+    const expDateStr = expDate.toISOString().split("T")[0];
+
+    // Auto-fill order lines from template lines
+    const newLines = tmpl.lines && tmpl.lines.length > 0
+      ? tmpl.lines.map((l) => {
+          const product = products.find((p) => p.id === l.product_id);
+          return {
+            product_id: l.product_id || "",
+            variant_id: "",
+            quantity: l.quantity || 1,
+            unit_price: product?.sales_price || 0,
+            discount_pct: 0,
+            tax_ids: product?.taxes?.map(t => t.id) || [],
+          };
+        })
+      : [{ ...EMPTY_LINE }];
+
+    setForm(f => ({
+      ...f,
+      quotation_template_id: templateId,
+      plan_id: tmpl.recurring_plan_id || f.plan_id,
+      expiration_date: expDateStr,
+    }));
+    setLines(newLines);
+    toast.success(`Template "${tmpl.name}" applied — ${newLines.length} line(s) loaded`);
+  };
+
   const lineAmount = (l) => {
     const base = (l.quantity || 0) * (l.unit_price || 0);
     return base - base * (l.discount_pct || 0) / 100;
@@ -270,13 +309,34 @@ export default function SubscriptionForm() {
             </select>
           </FormField>
 
-          <FormField label="Quotation Template">
-            <select value={form.quotation_template_id} onChange={(e) => setForm(f => ({ ...f, quotation_template_id: e.target.value }))}
-              className="w-full px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/30"
-              style={inputStyle}>
-              <option value="">— None —</option>
-              {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
+          <FormField label="Quotation Template" className="sm:col-span-2">
+            <div className="flex gap-2 items-center">
+              <select
+                value={form.quotation_template_id}
+                onChange={(e) => applyTemplate(e.target.value)}
+                className="flex-1 px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/30"
+                style={inputStyle}
+                disabled={isLocked}
+              >
+                <option value="">— None —</option>
+                {templates.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.validity_days}d validity{t.recurring_plan_name ? ` · ${t.recurring_plan_name}` : ""})</option>)}
+              </select>
+              {form.quotation_template_id && !isLocked && (
+                <button
+                  type="button"
+                  onClick={() => applyTemplate(form.quotation_template_id)}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 whitespace-nowrap transition-colors"
+                  title="Re-apply template (overwrites current lines)"
+                >
+                  Re-apply
+                </button>
+              )}
+            </div>
+            {form.quotation_template_id && (
+              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                ✓ Template applied — order lines, recurring plan and expiration date have been pre-filled. You can still edit them below.
+              </p>
+            )}
           </FormField>
 
           <FormField label="Expiration Date">

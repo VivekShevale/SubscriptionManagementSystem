@@ -25,6 +25,7 @@ import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
+import AcceptInvite from "./pages/auth/AcceptInvite";
 
 // ── Admin / Internal Pages ────────────────────────────────────────────────────
 import Dashboard from "./pages/admin/Dashboard";
@@ -123,6 +124,7 @@ export default function App() {
         <Route path="/signup" element={<AuthRedirect><Signup /></AuthRedirect>} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/accept-invite/:token" element={<AcceptInvite />} />
 
         {/* ── Admin / Internal Routes ───────────────────────────────────── */}
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>

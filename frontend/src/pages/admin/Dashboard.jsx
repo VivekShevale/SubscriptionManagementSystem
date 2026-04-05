@@ -12,7 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { gsap } from "gsap";
 import {
   RefreshCw, Receipt, TrendingUp, AlertCircle,
-  Users, Package, CheckCircle, Clock,
+  Users, Package, CheckCircle, Clock, Printer,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [recentSubs, setRecentSubs] = useState([]);
   const [loading, setLoading] = useState(true);
   const cardsRef = useRef([]);
+  const dashboardRef = useRef(null);
 
   useEffect(() => {
     loadData();
@@ -59,6 +60,380 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-IN');
+    const timeStr = now.toLocaleTimeString('en-IN');
+    
+    // Get current stats for print
+    const currentStats = stats || {};
+    const currentRevenue = revenue || [];
+    const currentSubs = recentSubs || [];
+    
+    const styles = `
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        
+        body {
+          font-family: 'Arial', 'Helvetica', sans-serif;
+          padding: 40px 20px;
+          background: white;
+          color: #333;
+        }
+        
+        .print-container {
+          max-width: 1200px;
+          margin: 0 auto;
+          background: white;
+        }
+        
+        .print-header {
+          text-align: center;
+          margin-bottom: 30px;
+          padding-bottom: 20px;
+          border-bottom: 3px solid #3b82f6;
+        }
+        
+        .print-header h1 {
+          color: #3b82f6;
+          font-size: 28px;
+          margin-bottom: 10px;
+        }
+        
+        .print-header p {
+          color: #666;
+          font-size: 14px;
+          margin-top: 5px;
+        }
+        
+        .kpi-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 20px;
+          margin-bottom: 30px;
+        }
+        
+        .kpi-card {
+          border: 1px solid #e0e0e0;
+          border-radius: 12px;
+          padding: 20px;
+          background: #f9fafb;
+        }
+        
+        .kpi-value {
+          font-size: 28px;
+          font-weight: bold;
+          color: #1f2937;
+          margin: 10px 0 5px;
+        }
+        
+        .kpi-label {
+          font-size: 14px;
+          color: #6b7280;
+          font-weight: 500;
+        }
+        
+        .kpi-sub {
+          font-size: 12px;
+          color: #9ca3af;
+          margin-top: 5px;
+        }
+        
+        .section {
+          margin-bottom: 30px;
+          page-break-inside: avoid;
+        }
+        
+        .section-title {
+          font-size: 20px;
+          font-weight: bold;
+          color: #1f2937;
+          margin-bottom: 15px;
+          padding-bottom: 10px;
+          border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .chart-container {
+          margin: 20px 0;
+          padding: 20px;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          background: #f9fafb;
+        }
+        
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 15px;
+        }
+        
+        .stat-item {
+          padding: 10px;
+          border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .stat-label {
+          font-size: 14px;
+          color: #6b7280;
+          margin-bottom: 5px;
+        }
+        
+        .stat-value {
+          font-size: 18px;
+          font-weight: bold;
+          color: #1f2937;
+        }
+        
+        .progress-bar {
+          height: 8px;
+          background: #e5e7eb;
+          border-radius: 4px;
+          overflow: hidden;
+          margin-top: 5px;
+        }
+        
+        .progress-fill {
+          height: 100%;
+          border-radius: 4px;
+          transition: width 0.3s;
+        }
+        
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 15px;
+        }
+        
+        th {
+          background: #f3f4f6;
+          padding: 12px;
+          text-align: left;
+          font-weight: 600;
+          font-size: 12px;
+          color: #374151;
+          border-bottom: 2px solid #e5e7eb;
+        }
+        
+        td {
+          padding: 10px 12px;
+          border-bottom: 1px solid #f0f0f0;
+          font-size: 14px;
+        }
+        
+        .status-badge {
+          display: inline-block;
+          padding: 4px 8px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 600;
+        }
+        
+        .print-footer {
+          margin-top: 40px;
+          text-align: center;
+          padding-top: 20px;
+          border-top: 1px solid #e5e7eb;
+          font-size: 12px;
+          color: #9ca3af;
+        }
+        
+        @media print {
+          body {
+            padding: 0;
+            margin: 0;
+          }
+          
+          .no-print {
+            display: none;
+          }
+        }
+      </style>
+    `;
+    
+    const getStatusColor = (status) => {
+      const colors = {
+        draft: '#94a3b8',
+        quotation: '#f59e0b',
+        quotation_sent: '#f97316',
+        confirmed: '#3b82f6',
+        active: '#22c55e',
+        closed: '#ef4444'
+      };
+      return colors[status] || '#94a3b8';
+    };
+    
+    const getStatusBadgeStyle = (status) => {
+      const color = getStatusColor(status);
+      return `background: ${color}15; color: ${color}; border: 1px solid ${color}30;`;
+    };
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Admin Dashboard Report - ${dateStr}</title>
+        ${styles}
+      </head>
+      <body>
+        <div class="print-container">
+          <div class="print-header">
+            <h1>📊 Admin Dashboard Report</h1>
+            <p>Generated on: ${dateStr} at ${timeStr}</p>
+          </div>
+          
+          <div class="section">
+            <h2 class="section-title">Key Performance Indicators</h2>
+            <div class="kpi-grid">
+              <div class="kpi-card">
+                <div class="kpi-label">Active Subscriptions</div>
+                <div class="kpi-value">${currentStats?.subscriptions?.active ?? 0}</div>
+                <div class="kpi-sub">${currentStats?.subscriptions?.total ?? 0} total</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Monthly Revenue</div>
+                <div class="kpi-value">₹${((currentStats?.revenue?.monthly_revenue ?? 0) / 1000).toFixed(1)}K</div>
+                <div class="kpi-sub">₹${((currentStats?.revenue?.total_revenue ?? 0) / 1000).toFixed(1)}K all time</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Confirmed Invoices</div>
+                <div class="kpi-value">${currentStats?.invoices?.confirmed ?? 0}</div>
+                <div class="kpi-sub">${currentStats?.invoices?.paid ?? 0} paid</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Overdue Invoices</div>
+                <div class="kpi-value">${currentStats?.invoices?.overdue ?? 0}</div>
+                <div class="kpi-sub">Require attention</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Total Contacts</div>
+                <div class="kpi-value">${currentStats?.contacts?.total ?? 0}</div>
+                <div class="kpi-sub">${currentStats?.contacts?.active ?? 0} active customers</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Quotations</div>
+                <div class="kpi-value">${currentStats?.subscriptions?.quotation ?? 0}</div>
+                <div class="kpi-sub">Pending confirmation</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Closed Subscriptions</div>
+                <div class="kpi-value">${currentStats?.subscriptions?.closed ?? 0}</div>
+                <div class="kpi-sub">Churned</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Total Products</div>
+                <div class="kpi-value">${currentStats?.products?.total ?? 0}</div>
+                <div class="kpi-sub">In catalog</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="section">
+            <h2 class="section-title">Subscription Status Distribution</h2>
+            <div class="stats-grid">
+              ${Object.entries(currentStats?.subscriptions || {})
+                .filter(([k]) => k !== "total")
+                .map(([status, count]) => {
+                  const pct = currentStats?.subscriptions?.total
+                    ? Math.round((count / currentStats.subscriptions.total) * 100)
+                    : 0;
+                  return `
+                    <div class="stat-item">
+                      <div class="stat-label" style="text-transform: capitalize;">${status.replace(/_/g, " ")}</div>
+                      <div class="stat-value">${count} (${pct}%)</div>
+                      <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${pct}%; background: ${getStatusColor(status)}"></div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+            </div>
+          </div>
+          
+          <div class="section">
+            <h2 class="section-title">Monthly Revenue Trend</h2>
+            <div class="chart-container">
+              <table style="width: 100%;">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>Revenue (₹)</th>
+                    <th>Trend</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${currentRevenue.map(item => `
+                    <tr>
+                      <td>${item.month}</td>
+                      <td>₹${item.revenue.toLocaleString()}</td>
+                      <td>${item.revenue > 0 ? '📈' : '📉'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div class="section">
+            <h2 class="section-title">Recent Subscriptions</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Number</th>
+                  <th>Customer</th>
+                  <th>Plan</th>
+                  <th>Next Invoice</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${currentSubs.map(sub => `
+                  <tr>
+                    <td style="font-family: monospace;">${sub.subscription_number}</td>
+                    <td>${sub.customer_name || "—"}</td>
+                    <td>${sub.plan_name || "—"}</td>
+                    <td>${sub.next_invoice_date ? new Date(sub.next_invoice_date).toLocaleDateString() : "—"}</td>
+                    <td>
+                      <span class="status-badge" style="${getStatusBadgeStyle(sub.status)}">
+                        ${sub.status?.replace(/_/g, " ") || "—"}
+                      </span>
+                    </td>
+                  </tr>
+                `).join('')}
+                ${currentSubs.length === 0 ? `
+                  <tr>
+                    <td colspan="5" style="text-align: center; padding: 40px;">No subscriptions found</td>
+                  </tr>
+                ` : ''}
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="print-footer">
+            <p>This is a system-generated dashboard report. For any queries, please contact the administrator.</p>
+            <p>© ${new Date().getFullYear()} Your Company Name. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    
+    printWindow.onload = () => {
+      printWindow.print();
+      printWindow.onafterprint = () => {
+        printWindow.close();
+      };
+    };
   };
 
   if (loading) {
@@ -138,13 +513,26 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page title */}
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Dashboard</h1>
-        <p className="text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
-          Overview of your subscription business
-        </p>
+    <div ref={dashboardRef} className="space-y-6">
+      {/* Page title with Print Button */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Dashboard</h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
+            Overview of your subscription business
+          </p>
+        </div>
+        <button
+          onClick={handlePrint}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md"
+          style={{
+            background: "var(--bg-secondary)",
+            border: "1px solid var(--border-color)",
+            color: "var(--text-primary)",
+          }}
+        >
+          <Printer size={16} /> Print Dashboard
+        </button>
       </div>
 
       {/* KPI Grid */}

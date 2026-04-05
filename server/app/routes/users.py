@@ -9,13 +9,15 @@ Portal users are created via the public registration endpoint.
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from datetime import datetime, timezone, timedelta
+import secrets
 from app import db
 from app.models import User, Contact
 from app.utils.helpers import (
     hash_password, validate_password, generate_temp_password,
     admin_required, admin_or_internal_required, get_current_user
 )
-from app.utils.email import send_internal_user_credentials
+from app.utils.email import send_invite_email
 
 users_bp = Blueprint("users", __name__)
 
@@ -115,16 +117,23 @@ def create_user():
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "Email already registered."}), 409
 
-    # Auto-generate temporary password
-    temp_password = generate_temp_password()
+    # Generate a secure invite token (no password sent in email)
+    invite_token = secrets.token_urlsafe(32)
+    invite_expires = datetime.now(timezone.utc) + timedelta(hours=24)
     current_admin = get_current_user()
+
+    # Use a placeholder password hash — user will set their own via invite link
+    placeholder_hash = hash_password(secrets.token_urlsafe(32))
 
     user = User(
         login_id=login_id,
         email=email,
-        password_hash=hash_password(temp_password),
+        password_hash=placeholder_hash,
         role=role,
         is_active=is_active,
+        must_reset_password=True,
+        invite_token=invite_token,
+        invite_token_expires=invite_expires,
         created_by=current_admin.id,
     )
     db.session.add(user)
@@ -135,10 +144,13 @@ def create_user():
     db.session.add(contact)
     db.session.commit()
 
-    # Send credentials via email
-    send_internal_user_credentials(email, login_id, temp_password)
+    # Send invite link email (no password exposed)
+    import os
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    invite_url = f"{frontend_url}/accept-invite/{invite_token}"
+    send_invite_email(email, login_id, role, invite_url)
 
-    return jsonify({"message": "User created successfully.", "user": user.to_dict()}), 201
+    return jsonify({"message": "User created successfully. Invite email sent.", "user": user.to_dict()}), 201
 
 
 @users_bp.route("/<int:user_id>", methods=["PUT"])

@@ -182,3 +182,40 @@ def send_invoice_paid_email(to_email: str, customer_name: str, invoice_number: s
     </div>
     """
     return send_email(to_email, customer_name, f"Payment Confirmed — Invoice {invoice_number}", html)
+
+
+def send_invite_email(to_email: str, login_id: str, role: str, invite_url: str) -> bool:
+    """
+    Send a secure invite link to a newly created user.
+    No password is exposed — the link authenticates them directly
+    and redirects them to set their own password.
+    """
+    role_label = {"admin": "Administrator", "internal": "Internal User", "portal": "Customer"}.get(role, role.title())
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2563eb;">You've been invited to SubscriptionMS 🎉</h2>
+        <p>Hi <strong>{login_id}</strong>,</p>
+        <p>An administrator has created an account for you as <strong>{role_label}</strong>.</p>
+        <p>Click the button below to activate your account and set your own password.
+           This link is valid for <strong>24 hours</strong> and can only be used once.</p>
+        <div style="text-align: center; margin: 32px 0;">
+            <a href="{invite_url}"
+               style="background: #2563eb; color: white; padding: 14px 32px; border-radius: 8px;
+                      text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">
+                Activate My Account
+            </a>
+        </div>
+        <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
+            <p style="margin: 0; font-size: 13px; color: #6b7280;">
+                Your Login ID: <strong style="color: #1f2937;">{login_id}</strong>
+            </p>
+        </div>
+        <p style="color: #6b7280; font-size: 13px;">
+            If you did not expect this invitation, you can safely ignore this email.
+            The link will expire automatically.
+        </p>
+        <hr style="border: 1px solid #e5e7eb; margin-top: 32px;" />
+        <p style="color: #9ca3af; font-size: 12px;">SubscriptionMS — Automated Email</p>
+    </div>
+    """
+    return send_email(to_email, login_id, "You've been invited to SubscriptionMS", html)

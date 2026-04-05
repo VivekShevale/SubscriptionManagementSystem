@@ -10,6 +10,7 @@ Subsequent registrations via signup become Portal users.
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from datetime import datetime, timezone
 from app import db
 from app.models import User, Contact
 from app.utils.helpers import (
@@ -19,6 +20,38 @@ from app.utils.helpers import (
 from app.utils.email import send_welcome_email, send_otp_email
 
 auth_bp = Blueprint("auth", __name__)
+
+
+@auth_bp.route("/accept-invite/<string:token>", methods=["GET"])
+def accept_invite(token):
+    """
+    Validate an invite token issued when admin creates a user.
+    On success: issues a short-lived JWT and returns user info so the
+    frontend can authenticate the user and redirect them to set-password.
+    Token is single-use and expires after 24 hours.
+    """
+    user = User.query.filter_by(invite_token=token).first()
+
+    if not user:
+        return jsonify({"error": "Invalid or already-used invite link."}), 400
+
+    if not user.invite_token_expires or \
+       datetime.now(timezone.utc) > user.invite_token_expires:
+        return jsonify({"error": "This invite link has expired. Please ask your administrator to resend."}), 400
+
+    # Consume the token — single use
+    user.invite_token = None
+    user.invite_token_expires = None
+    db.session.commit()
+
+    # Issue a real JWT so frontend can authenticate immediately
+    jwt_token = create_access_token(identity=str(user.id))
+
+    return jsonify({
+        "token": jwt_token,
+        "user": user.to_dict(),
+        "must_set_password": True,  # always true for invite flow
+    }), 200
 
 
 @auth_bp.route("/register", methods=["POST"])
@@ -113,6 +146,7 @@ def login():
     return jsonify({
         "token": token,
         "user": user.to_dict(),
+        "must_reset_password": user.must_reset_password,
     }), 200
 
 
@@ -157,7 +191,10 @@ def verify_otp_route():
 
 @auth_bp.route("/reset-password", methods=["POST"])
 def reset_password():
-    """Reset user password after OTP verification."""
+    """
+    Reset user password after OTP verification.
+    Also clears the must_reset_password flag.
+    """
     data = request.get_json()
     email = (data.get("email") or "").strip().lower()
     new_password = data.get("new_password", "")
@@ -174,6 +211,7 @@ def reset_password():
         return jsonify({"error": "User not found."}), 404
 
     user.password_hash = hash_password(new_password)
+    user.must_reset_password = False
     db.session.commit()
 
     return jsonify({"message": "Password reset successfully."}), 200
@@ -194,7 +232,33 @@ def get_me():
     return jsonify(data), 200
 
 
-@auth_bp.route("/change-password", methods=["PUT"])
+@auth_bp.route("/set-invite-password", methods=["POST"])
+@jwt_required()
+def set_invite_password():
+    """
+    Set password for users who authenticated via invite link.
+    No current password required — the invite token already proved identity.
+    Only works when must_reset_password is True.
+    """
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "User not found."}), 404
+
+    if not user.must_reset_password:
+        return jsonify({"error": "Password has already been set."}), 400
+
+    data = request.get_json()
+    new_password = data.get("new_password", "")
+
+    valid, msg = validate_password(new_password)
+    if not valid:
+        return jsonify({"error": msg}), 400
+
+    user.password_hash = hash_password(new_password)
+    user.must_reset_password = False
+    db.session.commit()
+
+    return jsonify({"message": "Password set successfully. Your account is now active."}), 200
 @jwt_required()
 def change_password():
     """Allow authenticated users to change their own password."""
@@ -211,6 +275,7 @@ def change_password():
         return jsonify({"error": msg}), 400
 
     user.password_hash = hash_password(new_password)
+    user.must_reset_password = False
     db.session.commit()
 
     return jsonify({"message": "Password changed successfully."}), 200
