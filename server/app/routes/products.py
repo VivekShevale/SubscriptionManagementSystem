@@ -15,7 +15,7 @@ from app.utils.helpers import admin_required, admin_or_internal_required, get_cu
 products_bp = Blueprint("products", __name__)
 
 
-@products_bp.route("/", methods=["GET"])
+@products_bp.route("/", methods=["GET"], strict_slashes=False)
 @jwt_required()
 def list_products():
     """List all active products. Accessible to admin and internal users."""
@@ -41,7 +41,7 @@ def get_product(product_id):
     return jsonify(product.to_dict()), 200
 
 
-@products_bp.route("/", methods=["POST"])
+@products_bp.route("/", methods=["POST"], strict_slashes=False)
 @jwt_required()
 @admin_or_internal_required
 def create_product():

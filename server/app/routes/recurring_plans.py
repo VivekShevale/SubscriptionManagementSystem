@@ -10,7 +10,7 @@ from app.utils.helpers import admin_required, admin_or_internal_required
 
 recurring_plans_bp = Blueprint("recurring_plans", __name__)
 
-@recurring_plans_bp.route("/", methods=["GET"])
+@recurring_plans_bp.route("/", methods=["GET"], strict_slashes=False)
 @jwt_required()
 def list_plans():
     plans = RecurringPlan.query.filter_by(is_active=True).order_by(RecurringPlan.name).all()
@@ -22,7 +22,7 @@ def get_plan(plan_id):
     plan = RecurringPlan.query.get_or_404(plan_id)
     return jsonify(plan.to_dict()), 200
 
-@recurring_plans_bp.route("/", methods=["POST"])
+@recurring_plans_bp.route("/", methods=["POST"], strict_slashes=False)
 @jwt_required()
 @admin_required
 def create_plan():

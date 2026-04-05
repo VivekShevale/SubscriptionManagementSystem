@@ -21,11 +21,12 @@ from app.utils.helpers import (
 )
 from app.utils.email import send_quotation_email
 import os
+from app.utils.helpers import admin_required
 
 subscriptions_bp = Blueprint("subscriptions", __name__)
 
 
-@subscriptions_bp.route("/", methods=["GET"])
+@subscriptions_bp.route("/", methods=["GET"], strict_slashes=False)
 @jwt_required()
 @admin_or_internal_required
 def list_subscriptions():
@@ -37,6 +38,7 @@ def list_subscriptions():
     customer_id = request.args.get("customer_id", "")
     plan_id = request.args.get("plan_id", "")
     search = request.args.get("q", "")
+    limit = request.args.get("limit", "")
 
     query = Subscription.query
     if status:
@@ -51,7 +53,14 @@ def list_subscriptions():
             (Contact.name.ilike(f"%{search}%"))
         )
 
-    subs = query.order_by(Subscription.created_at.desc()).all()
+    query = query.order_by(Subscription.created_at.desc())
+    if limit:
+        try:
+            query = query.limit(int(limit))
+        except ValueError:
+            pass
+
+    subs = query.all()
     return jsonify([s.to_dict() for s in subs]), 200
 
 
@@ -63,7 +72,7 @@ def get_subscription(sub_id):
     return jsonify(sub.to_dict()), 200
 
 
-@subscriptions_bp.route("/", methods=["POST"])
+@subscriptions_bp.route("/", methods=["POST"], strict_slashes=False)
 @jwt_required()
 @admin_or_internal_required
 def create_subscription():
@@ -77,15 +86,24 @@ def create_subscription():
 
     sub_number = generate_subscription_number()
 
+    def _int_or_none(val):
+        """Convert empty string / falsy non-zero to None for integer FK columns."""
+        if val == "" or val is None:
+            return None
+        try:
+            return int(val)
+        except (TypeError, ValueError):
+            return None
+
     sub = Subscription(
         subscription_number=sub_number,
-        customer_id=data.get("customer_id"),
-        plan_id=data.get("plan_id"),
-        quotation_template_id=data.get("quotation_template_id"),
-        payment_term_id=data.get("payment_term_id"),
-        salesperson_id=data.get("salesperson_id") or current_user.id,
+        customer_id=_int_or_none(data.get("customer_id")),
+        plan_id=_int_or_none(data.get("plan_id")),
+        quotation_template_id=_int_or_none(data.get("quotation_template_id")),
+        payment_term_id=_int_or_none(data.get("payment_term_id")),
+        salesperson_id=_int_or_none(data.get("salesperson_id")) or current_user.id,
         status="draft",
-        expiration_date=data.get("expiration_date"),
+        expiration_date=data.get("expiration_date") or None,
         notes=data.get("notes"),
         created_by=current_user.id,
     )
@@ -94,11 +112,14 @@ def create_subscription():
 
     # Add order lines
     for line in data.get("order_lines", []):
+        product_id = _int_or_none(line.get("product_id"))
+        if not product_id:
+            continue  # skip blank lines
         sl = SubscriptionLine(
             subscription_id=sub.id,
-            product_id=line.get("product_id"),
-            variant_id=line.get("variant_id"),
-            description=line.get("description"),
+            product_id=product_id,
+            variant_id=_int_or_none(line.get("variant_id")),
+            description=line.get("description") or None,
             quantity=line.get("quantity", 1),
             unit_price=line.get("unit_price", 0),
             discount_pct=line.get("discount_pct", 0),
@@ -123,29 +144,40 @@ def update_subscription(sub_id):
     data = request.get_json()
     current_user = get_current_user()
 
-    sub.customer_id = data.get("customer_id", sub.customer_id)
-    sub.plan_id = data.get("plan_id", sub.plan_id)
-    sub.quotation_template_id = data.get("quotation_template_id", sub.quotation_template_id)
-    sub.payment_term_id = data.get("payment_term_id", sub.payment_term_id)
-    sub.expiration_date = data.get("expiration_date", sub.expiration_date)
-    sub.start_date = data.get("start_date", sub.start_date)
+    def _int_or_none(val):
+        if val == "" or val is None:
+            return None
+        try:
+            return int(val)
+        except (TypeError, ValueError):
+            return None
+
+    sub.customer_id = _int_or_none(data.get("customer_id")) or sub.customer_id
+    sub.plan_id = _int_or_none(data.get("plan_id"))
+    sub.quotation_template_id = _int_or_none(data.get("quotation_template_id"))
+    sub.payment_term_id = _int_or_none(data.get("payment_term_id"))
+    sub.expiration_date = data.get("expiration_date") or None
+    sub.start_date = data.get("start_date") or None
     sub.notes = data.get("notes", sub.notes)
     sub.payment_method = data.get("payment_method", sub.payment_method)
     sub.payment_done = data.get("payment_done", sub.payment_done)
 
     # Only admin can reassign salesperson
     if "salesperson_id" in data and current_user.role == "admin":
-        sub.salesperson_id = data["salesperson_id"]
+        sub.salesperson_id = _int_or_none(data["salesperson_id"])
 
     # Update order lines only if not confirmed
     if "order_lines" in data and sub.status not in ("confirmed", "active", "closed"):
         SubscriptionLine.query.filter_by(subscription_id=sub.id).delete()
         for line in data["order_lines"]:
+            product_id = _int_or_none(line.get("product_id"))
+            if not product_id:
+                continue  # skip blank lines
             sl = SubscriptionLine(
                 subscription_id=sub.id,
-                product_id=line.get("product_id"),
-                variant_id=line.get("variant_id"),
-                description=line.get("description"),
+                product_id=product_id,
+                variant_id=_int_or_none(line.get("variant_id")),
+                description=line.get("description") or None,
                 quantity=line.get("quantity", 1),
                 unit_price=line.get("unit_price", 0),
                 discount_pct=line.get("discount_pct", 0),

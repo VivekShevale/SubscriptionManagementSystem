@@ -108,7 +108,7 @@ def login():
     if not user.is_active:
         return jsonify({"error": "Your account is inactive. Contact an administrator."}), 403
 
-    token = create_access_token(identity=user.id)
+    token = create_access_token(identity=str(user.id))
 
     return jsonify({
         "token": token,

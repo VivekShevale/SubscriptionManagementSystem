@@ -7,7 +7,7 @@ from app.utils.helpers import admin_required, get_current_user
 
 discounts_bp = Blueprint("discounts", __name__)
 
-@discounts_bp.route("/", methods=["GET"])
+@discounts_bp.route("/", methods=["GET"], strict_slashes=False)
 @jwt_required()
 @admin_required
 def list_discounts():
@@ -20,7 +20,7 @@ def list_discounts():
 def get_discount(did):
     return jsonify(Discount.query.get_or_404(did).to_dict()), 200
 
-@discounts_bp.route("/", methods=["POST"])
+@discounts_bp.route("/", methods=["POST"], strict_slashes=False)
 @jwt_required()
 @admin_required
 def create_discount():

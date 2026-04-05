@@ -7,7 +7,7 @@ from app.utils.helpers import admin_required
 
 taxes_bp = Blueprint("taxes", __name__)
 
-@taxes_bp.route("/", methods=["GET"])
+@taxes_bp.route("/", methods=["GET"], strict_slashes=False)
 @jwt_required()
 def list_taxes():
     taxes = Tax.query.filter_by(is_active=True).all()
@@ -18,7 +18,7 @@ def list_taxes():
 def get_tax(tid):
     return jsonify(Tax.query.get_or_404(tid).to_dict()), 200
 
-@taxes_bp.route("/", methods=["POST"])
+@taxes_bp.route("/", methods=["POST"], strict_slashes=False)
 @jwt_required()
 @admin_required
 def create_tax():

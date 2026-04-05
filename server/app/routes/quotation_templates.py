@@ -7,7 +7,7 @@ from app.utils.helpers import admin_required, admin_or_internal_required
 
 quotation_templates_bp = Blueprint("quotation_templates", __name__)
 
-@quotation_templates_bp.route("/", methods=["GET"])
+@quotation_templates_bp.route("/", methods=["GET"], strict_slashes=False)
 @jwt_required()
 def list_templates():
     templates = QuotationTemplate.query.order_by(QuotationTemplate.name).all()
@@ -18,7 +18,7 @@ def list_templates():
 def get_template(tid):
     return jsonify(QuotationTemplate.query.get_or_404(tid).to_dict()), 200
 
-@quotation_templates_bp.route("/", methods=["POST"])
+@quotation_templates_bp.route("/", methods=["POST"], strict_slashes=False)
 @jwt_required()
 @admin_or_internal_required
 def create_template():

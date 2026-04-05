@@ -156,3 +156,29 @@ def send_invoice_email(to_email: str, customer_name: str, invoice_number: str, a
     </div>
     """
     return send_email(to_email, customer_name, f"Invoice {invoice_number} — SubscriptionMS", html)
+
+def send_invoice_paid_email(to_email: str, customer_name: str, invoice_number: str, amount_paid: float, subscription_number: str) -> bool:
+    """
+    Send payment confirmation email with invoice details to customer after successful payment.
+    """
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #16a34a;">✅ Payment Confirmed — Invoice {invoice_number}</h2>
+        <p>Dear {customer_name},</p>
+        <p>Your payment has been received and your invoice is now marked as <strong>Paid</strong>.</p>
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p><strong>Subscription:</strong> {subscription_number}</p>
+            <p><strong>Invoice Number:</strong> {invoice_number}</p>
+            <p><strong>Amount Paid:</strong> ₹{amount_paid:,.2f}</p>
+            <p><strong>Status:</strong> <span style="color: #16a34a; font-weight: bold;">PAID</span></p>
+        </div>
+        <p>You can view and download your invoice from your portal account.</p>
+        <a href="{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/portal/orders"
+           style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; margin-top: 16px;">
+            View My Orders
+        </a>
+        <hr style="border: 1px solid #e5e7eb; margin-top: 32px;" />
+        <p style="color: #9ca3af; font-size: 12px;">SubscriptionMS — Automated Email</p>
+    </div>
+    """
+    return send_email(to_email, customer_name, f"Payment Confirmed — Invoice {invoice_number}", html)

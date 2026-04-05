@@ -13,11 +13,12 @@ from app import db
 from app.models import Invoice, InvoiceLine, Payment
 from app.utils.helpers import generate_invoice_number, admin_or_internal_required, get_current_user
 from app.utils.email import send_invoice_email
+from app.utils.helpers import admin_required
 
 invoices_bp = Blueprint("invoices", __name__)
 
 
-@invoices_bp.route("/", methods=["GET"])
+@invoices_bp.route("/", methods=["GET"], strict_slashes=False)
 @jwt_required()
 @admin_or_internal_required
 def list_invoices():
@@ -39,7 +40,7 @@ def get_invoice(inv_id):
     return jsonify(inv.to_dict()), 200
 
 
-@invoices_bp.route("/", methods=["POST"])
+@invoices_bp.route("/", methods=["POST"], strict_slashes=False)
 @jwt_required()
 @admin_or_internal_required
 def create_invoice():

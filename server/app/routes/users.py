@@ -13,14 +13,14 @@ from app import db
 from app.models import User, Contact
 from app.utils.helpers import (
     hash_password, validate_password, generate_temp_password,
-    admin_required, get_current_user
+    admin_required, admin_or_internal_required, get_current_user
 )
 from app.utils.email import send_internal_user_credentials
 
 users_bp = Blueprint("users", __name__)
 
 
-@users_bp.route("/", methods=["GET"])
+@users_bp.route("/", methods=["GET"], strict_slashes=False)
 @jwt_required()
 @admin_required
 def list_users():
@@ -40,6 +40,36 @@ def list_users():
     return jsonify([u.to_dict() for u in users]), 200
 
 
+@users_bp.route("/portal-users", methods=["GET"], strict_slashes=False)
+@jwt_required()
+@admin_or_internal_required
+def list_portal_users():
+    """List only portal users (customers). Used for customer dropdown in SubscriptionForm."""
+    users = User.query.filter_by(role="portal", is_active=True).order_by(User.login_id).all()
+    result = []
+    for u in users:
+        contact = Contact.query.filter_by(user_id=u.id).first()
+        result.append({
+            "id": u.id,
+            "login_id": u.login_id,
+            "email": u.email,
+            "contact_id": contact.id if contact else None,
+            "contact_name": contact.name if contact else u.login_id,
+        })
+    return jsonify(result), 200
+
+
+@users_bp.route("/internal-users", methods=["GET"], strict_slashes=False)
+@jwt_required()
+@admin_or_internal_required
+def list_internal_users():
+    """List only admin + internal users. Used for salesperson dropdown in SubscriptionForm."""
+    users = User.query.filter(
+        User.role.in_(["admin", "internal"]), User.is_active == True
+    ).order_by(User.login_id).all()
+    return jsonify([u.to_dict() for u in users]), 200
+
+
 @users_bp.route("/<int:user_id>", methods=["GET"])
 @jwt_required()
 def get_user(user_id):
@@ -56,7 +86,7 @@ def get_user(user_id):
     return jsonify(data), 200
 
 
-@users_bp.route("/", methods=["POST"])
+@users_bp.route("/", methods=["POST"], strict_slashes=False)
 @jwt_required()
 @admin_required
 def create_user():

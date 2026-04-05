@@ -30,7 +30,7 @@ def get_razorpay_client():
     )
 
 
-@payments_bp.route("/", methods=["GET"])
+@payments_bp.route("/", methods=["GET"], strict_slashes=False)
 @jwt_required()
 @admin_or_internal_required
 def list_payments():
@@ -43,7 +43,7 @@ def list_payments():
     return jsonify([p.to_dict() for p in payments]), 200
 
 
-@payments_bp.route("/", methods=["POST"])
+@payments_bp.route("/", methods=["POST"], strict_slashes=False)
 @jwt_required()
 def create_payment():
     """
@@ -69,6 +69,7 @@ def create_payment():
 
     # Mark invoice as paid if fully settled
     db.session.flush()
+    db.session.refresh(invoice)  # reload relationship cache so amount_due is accurate
     if invoice.amount_due <= 0:
         invoice.status = "paid"
 
@@ -149,6 +150,7 @@ def verify_razorpay_payment():
     db.session.add(payment)
 
     db.session.flush()
+    db.session.refresh(invoice)  # reload relationship cache so amount_due is accurate
     if invoice.amount_due <= 0:
         invoice.status = "paid"
 
