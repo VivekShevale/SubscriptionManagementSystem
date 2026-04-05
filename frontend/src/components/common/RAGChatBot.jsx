@@ -93,6 +93,7 @@ function buildSystemPrompt(role, user, context) {
   // Summarise data to avoid token overflow
   let dataSection = "";
 
+  
   if (role !== "portal") {
     const dash = context.dashboard || {};
     const subs = context.subscriptions || [];
