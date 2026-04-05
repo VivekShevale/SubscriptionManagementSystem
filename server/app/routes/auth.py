@@ -113,7 +113,6 @@ def login():
     return jsonify({
         "token": token,
         "user": user.to_dict(),
-        "must_reset_password": user.must_reset_password,
     }), 200
 
 
@@ -158,10 +157,7 @@ def verify_otp_route():
 
 @auth_bp.route("/reset-password", methods=["POST"])
 def reset_password():
-    """
-    Reset user password after OTP verification.
-    Also clears the must_reset_password flag.
-    """
+    """Reset user password after OTP verification."""
     data = request.get_json()
     email = (data.get("email") or "").strip().lower()
     new_password = data.get("new_password", "")
@@ -178,7 +174,6 @@ def reset_password():
         return jsonify({"error": "User not found."}), 404
 
     user.password_hash = hash_password(new_password)
-    user.must_reset_password = False
     db.session.commit()
 
     return jsonify({"message": "Password reset successfully."}), 200
@@ -216,7 +211,6 @@ def change_password():
         return jsonify({"error": msg}), 400
 
     user.password_hash = hash_password(new_password)
-    user.must_reset_password = False
     db.session.commit()
 
     return jsonify({"message": "Password changed successfully."}), 200

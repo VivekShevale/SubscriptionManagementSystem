@@ -15,13 +15,15 @@ import {
   LayoutDashboard, Package, RefreshCw, FileText, Receipt,
   Users, Settings, ChevronDown, Moon, Sun, LogOut,
   User, Tag, Percent, BarChart2, Menu, X, Layers,
-  ShieldCheck, CreditCard, Bell, HelpCircle,
+  ShieldCheck, CreditCard, Bell, HelpCircle, Sparkles,
 } from "lucide-react";
 import { logout, selectCurrentUser } from "../store/slices/authSlice";
 import { toggleTheme, selectTheme } from "../store/slices/themeSlice";
 import Breadcrumb from "../components/common/Breadcrumb";
 import KeyboardShortcuts from "../components/common/KeyboardShortcuts";
 import Tooltip from "../components/common/Tooltip";
+import WebsiteTour, { hasTourBeenCompleted } from "../components/common/WebsiteTour";
+import RAGChatbot from "../components/common/RAGChatbot";
 
 // ── Navigation Configuration ──────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -56,6 +58,7 @@ export default function AdminLayout() {
   const [configOpen, setConfigOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [showTour, setShowTour] = useState(() => !hasTourBeenCompleted(user?.role || "admin"));
 
   const mainRef = useRef(null);
   const sidebarRef = useRef(null);
@@ -123,6 +126,7 @@ export default function AdminLayout() {
       {/* ── Sidebar ─────────────────────────────────────────────────────── */}
       <div
         ref={sidebarRef}
+        data-tour="sidebar"
         className="flex flex-col h-full overflow-hidden shrink-0 transition-all"
         style={{
           width: sidebarOpen ? 256 : 64,
@@ -198,6 +202,7 @@ export default function AdminLayout() {
               <Tooltip key={item.path} text={!sidebarOpen ? item.label : ""} side="right">
                 <Link
                   to={item.path}
+                  data-tour={`nav-${item.label.toLowerCase()}`}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                     isActive(item.path)
                       ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
@@ -238,6 +243,16 @@ export default function AdminLayout() {
             >
               <HelpCircle size={18} className="shrink-0" />
               {sidebarOpen && <span>Shortcuts</span>}
+            </button>
+          </Tooltip>
+
+          <Tooltip text="Take Website Tour" side="right">
+            <button
+              onClick={() => setShowTour(true)}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-gray-400 hover:text-blue-400 hover:bg-blue-500/20 text-sm transition-all"
+            >
+              <Sparkles size={18} className="shrink-0" />
+              {sidebarOpen && <span>Take Tour</span>}
             </button>
           </Tooltip>
 
@@ -284,6 +299,7 @@ export default function AdminLayout() {
             <div className="relative">
               <button
                 onClick={() => setProfileOpen((v) => !v)}
+                data-tour="topbar-profile"
                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-all"
                 style={{
                   background: "var(--bg-secondary)",
@@ -352,6 +368,17 @@ export default function AdminLayout() {
 
       {/* Keyboard Shortcuts Modal */}
       <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+
+      {/* Website Tour */}
+      {showTour && (
+        <WebsiteTour
+          role={user?.role || "admin"}
+          onComplete={() => setShowTour(false)}
+        />
+      )}
+
+      {/* RAG AI Chatbot */}
+      <RAGChatbot />
 
       {/* Profile overlay backdrop */}
       {profileOpen && (

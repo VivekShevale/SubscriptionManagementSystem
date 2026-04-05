@@ -67,12 +67,6 @@ export default function Login() {
       
       toast.success(`Welcome back, ${res.data.user.login_id}!`);
 
-      // Force password reset if flagged
-      if (res.data.must_reset_password) {
-        navigate("/reset-password");
-        return;
-      }
-
       // Route based on role
       if (res.data.user.role === "portal") {
         navigate("/portal");

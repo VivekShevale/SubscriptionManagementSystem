@@ -36,7 +36,6 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="portal")  # admin | internal | portal
     is_active = db.Column(db.Boolean, default=True)
-    must_reset_password = db.Column(db.Boolean, default=False)  # forced reset on first login
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
@@ -54,7 +53,6 @@ class User(db.Model):
             "email": self.email,
             "role": self.role,
             "is_active": self.is_active,
-            "must_reset_password": self.must_reset_password,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

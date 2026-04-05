@@ -13,6 +13,8 @@ import { ShoppingCart, User, Sun, Moon, LogOut, Package, ClipboardList, ChevronD
 import { logout, selectCurrentUser, selectIsAuthenticated } from "../store/slices/authSlice";
 import { toggleTheme, selectTheme } from "../store/slices/themeSlice";
 import { selectCartCount } from "../store/slices/cartSlice";
+import WebsiteTour, { hasTourBeenCompleted } from "../components/common/WebsiteTour";
+import RAGChatbot from "../components/common/RAGChatbot";
 
 export default function PortalLayout() {
   const dispatch = useDispatch();
@@ -23,6 +25,7 @@ export default function PortalLayout() {
   const theme = useSelector(selectTheme);
   const cartCount = useSelector(selectCartCount);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [showTour, setShowTour] = useState(() => !hasTourBeenCompleted("portal"));
 
   const handleLogout = () => {
     dispatch(logout());
@@ -52,7 +55,7 @@ export default function PortalLayout() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/portal" className="flex items-center gap-2">
+          <Link to="/portal" data-tour="portal-logo" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
               <Package size={16} className="text-white" />
             </div>
@@ -63,10 +66,10 @@ export default function PortalLayout() {
 
           {/* Nav Links */}
           <nav className="hidden md:flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
-            <Link to="/portal/shop" className={navLinkClass("/portal/shop")}>Home</Link>
-            <Link to="/portal/shop" className={navLinkClass("/portal/shop")}>Shop</Link>
+            {/* <Link to="/portal/shop" className={navLinkClass("/portal/shop")}>Home</Link> */}
+            <Link to="/portal/shop" data-tour="portal-shop" className={navLinkClass("/portal/shop")}>Shop</Link>
             {isAuthenticated && (
-              <Link to="/portal/orders" className={navLinkClass("/portal/orders")}>My Orders</Link>
+              <Link to="/portal/orders" data-tour="portal-orders" className={navLinkClass("/portal/orders")}>My Orders</Link>
             )}
           </nav>
 
@@ -84,6 +87,7 @@ export default function PortalLayout() {
             {/* Cart */}
             <Link
               to="/portal/cart"
+              data-tour="portal-cart"
               className="relative p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
               style={{ color: "var(--text-secondary)" }}
             >
@@ -100,6 +104,7 @@ export default function PortalLayout() {
               <div className="relative">
                 <button
                   onClick={() => setProfileOpen((v) => !v)}
+                  data-tour="portal-profile"
                   className="flex items-center gap-2 p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
                   style={{ color: "var(--text-secondary)" }}
                 >
@@ -167,6 +172,17 @@ export default function PortalLayout() {
       {profileOpen && (
         <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
       )}
+
+      {/* Website Tour for first-time portal users */}
+      {showTour && (
+        <WebsiteTour
+          role="portal"
+          onComplete={() => setShowTour(false)}
+        />
+      )}
+
+      {/* RAG AI Chatbot */}
+      <RAGChatbot />
     </div>
   );
 }

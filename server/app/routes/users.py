@@ -125,7 +125,6 @@ def create_user():
         password_hash=hash_password(temp_password),
         role=role,
         is_active=is_active,
-        must_reset_password=True,  # forced reset on first login
         created_by=current_admin.id,
     )
     db.session.add(user)

@@ -2,7 +2,7 @@
  * src/pages/auth/ResetPassword.jsx
  * Reset Password Page
  * --------------------
- * Called after OTP verification, or on first login with must_reset_password flag.
+ * Called after OTP verification to set a new password.
  * Validates password strength before submission.
  */
 import React, { useState } from "react";
